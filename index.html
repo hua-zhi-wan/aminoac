@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="shortcut icon" href="aminoac.png" type="image/png">
+    <title>阿米诺斯语翻译器</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet"
+        crossorigin="anonymous">
+</head>
+
+<body id="app" @vue:mounted="onmounted()">
+    <div class="container">
+        <h2 class="mt-4 text-center"><img src="aminoac.png" width="48px"> 阿米诺斯语翻译器</h2>
+        <ul class="list-group mt-4">
+            <li class="list-group-item">
+                <h3 class="mt-2">语言文字运用</h3>
+                <p class="fw-light">输入中文，翻译为阿米诺斯语</p>
+                <div class="mt-2">
+                    <textarea class="form-control" rows="4" spellcheck="false" v-model="origin"
+                        @keyup="translate()"></textarea>
+                </div>
+                <div class="mt-3 mb-3">
+                    <div class="form-control" v-html="translation" style="min-height: 4em;"></div>
+                </div>
+            </li>
+            <li class="list-group-item">
+                <h3 class="mt-2">跟读训练</h3>
+                <p class="fw-light">录制你的跟读，反复练习</p>
+                <div class="btn-group" role="group">
+                    <input type="button" class="btn btn-outline-danger shadow-sm" :value="buttonState"
+                        @click="record()" />
+                    <input type="button" class="btn btn-outline-primary shadow-sm" value="正放" @click="playReverse()" />
+                    <input type="button" class="btn btn-outline-secondary shadow-sm" value="倒放" @click="play()" />
+                    <input type="button" class="btn btn-outline-secondary shadow-sm disabled" :value="audioState" />
+                </div>
+                <div class="mt-3">
+                    <audio :src="audioBlob"></audio>
+                </div>
+            </li>
+            <li class="list-group-item">
+                <h4 class="mt-2 mb-3">关于本项目</h4>
+                <p>
+                    本项目旨在通过逐字翻译和跟读训练等方式，帮助广大学者研读并学习阿米诺斯语。
+                    <br>
+                    允许基于学习目的的常规使用，禁止用于商业活动。
+                </p>
+                <p class="fw-bold">作者：会唱歌的花枝丸
+                    <a href="https://github.com/HanaYabuki" class="link-primary">@github</a>
+                    <a href="https://space.bilibili.com/496956009" class="link-success">@bilibili</a>
+                </p>
+            </li>
+        </ul>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"
+        crossorigin="anonymous"></script>
+    <script src="js/pinyin4js.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/petite-vue@0.4.1/dist/petite-vue.iife.min.js"></script>
+    <script>
+        String.prototype.reverse = function () { return this.split("").reverse().join("") }
+        let mediaRecorder = undefined
+        let chunks = []
+        let audioBlob = undefined
+        let audioContext = new (window.AudioContext || window.webkitAudioContext)()
+
+        PetiteVue.createApp({
+            origin: PetiteVue.reactive(""),
+            translation: PetiteVue.reactive(""),
+            buttonState: PetiteVue.reactive("录音"),
+            audioState: PetiteVue.reactive("未加载音频"),
+
+            translate() {
+                const pnyn = PinyinHelper.convertToPinyinString(this.origin, "", PinyinFormat.WITHOUT_TONE)
+                const textline = pnyn.split("\n").map(function (line, id) {
+                    return line.reverse().split(/(?<=[aeiou])(?![aeioun]|ng)/).map(function (item) {
+                        const regex = [
+                            [/hc/i, "ch"],
+                            [/hs/i, "sh"],
+                            [/hz/i, "zh"],
+                            [/gn/i, "ng"],
+                        ]
+                        return regex.reduce(function (total, token) {
+                            return total.replace(...token)
+                        }, item)
+                    }).join(' ')
+                })
+                this.translation = textline.join("<br/>")
+            },
+            record() {
+                if (mediaRecorder) {
+                    if (mediaRecorder.state === "recording") {
+                        mediaRecorder.stop()
+                        this.buttonState = "录音"
+                    }
+                    else {
+                        mediaRecorder.start()
+                        this.buttonState = "停止"
+                    }
+                }
+                else {
+                    console.log("录不了")
+                }
+            },
+            onmounted() {
+                if (navigator.mediaDevices.getUserMedia) {
+                    const constraints = { audio: true }
+                    navigator.mediaDevices.getUserMedia(constraints).then(
+                        (stream) => {
+                            console.log("授权成功了，玩吧")
+                            mediaRecorder = new MediaRecorder(stream)
+                            mediaRecorder.ondataavailable = (e) => {
+                                chunks.push(e.data)
+                            }
+                            mediaRecorder.onstop = (e) => {
+                                audioBlob = new Blob(chunks, { type: 'audio/wav' })
+                                this.audioState = "已加载音频 #" + new Date().getTime()
+                                chunks = []
+                            }
+                        },
+                        () => {
+                            console.log("授权失败，不能用了")
+                        }
+                    )
+                }
+                else {
+                    console.log("浏览器不支持，拉了")
+                }
+            },
+            playReverse() {
+                audioBlob.arrayBuffer().then((arrbuf) => {
+                    audioContext.decodeAudioData(arrbuf, function (buffer) {
+                        const source = audioContext.createBufferSource()
+                        Array.prototype.reverse.call(buffer.getChannelData(0))
+                        source.buffer = buffer
+                        source.connect(audioContext.destination)
+                        source.start()
+                    }, function (err) {
+                        console.log("ERR:", err)
+                    })
+                })
+            },
+            play() {
+                audioBlob.arrayBuffer().then((arrbuf) => {
+                    audioContext.decodeAudioData(arrbuf, function (buffer) {
+                        const source = audioContext.createBufferSource()
+                        source.buffer = buffer
+                        source.connect(audioContext.destination)
+                        source.start()
+                    }, function (err) {
+                        console.log("ERR:", err)
+                    })
+                })
+            }
+        }).mount('#app')
+    </script>
+    <style>
+        audio {
+            display: block;
+            width: 100%;
+        }
+    </style>
+</body>
+
+</html>
