@@ -1,4 +1,4 @@
-# 🐙 aminoac
+# 🐙 [aminoac](aminoac.hanayabuki.cf)
 阿米诺斯语翻译器
 
 ## 📝 简介
