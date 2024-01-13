@@ -79,12 +79,13 @@
             translate() {
                 const pnyn = PinyinHelper.convertToPinyinString(this.origin, "", PinyinFormat.WITHOUT_TONE)
                 const textline = pnyn.split("\n").map(function (line, id) {
-                    return line.reverse().split(/(?<=[aeiou])(?![aeioun]|ng)/).map(function (item) {
+                    return line.reverse().split(/(?<=[aeiou])(?![aeiounwy]|ng)/).map(function (item) {
                         const regex = [
                             [/hc/i, "ch"],
                             [/hs/i, "sh"],
                             [/hz/i, "zh"],
                             [/gn/i, "ng"],
+                            [/v/i, "ü"], <!--or convert to "iu"？-->
                         ]
                         return regex.reduce(function (total, token) {
                             return total.replace(...token)
