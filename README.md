@@ -1,4 +1,4 @@
-# 🐙 [aminoac](aminoac.hanayabuki.cf)
+# 🐙 [aminoac](https://aminoac.huazhiwan.xyz)
 阿米诺斯语翻译器
 
 ## 📝 简介
